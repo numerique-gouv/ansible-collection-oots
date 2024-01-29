@@ -1,0 +1,84 @@
+---
+- name: Keystore contains only Domibus instance's certificate and private key
+  java_keystore:
+    dest: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus/keystores/gateway_keystore.jks"
+    certificate: "{{ domibus_bin_tc_jks_instance_certificate }}"
+    private_key: "{{ domibus_bin_tc_jks_instance_private_key }}"
+    private_key_passphrase: "{{ domibus_bin_tc_jks_instance_private_key_password }}"
+    name: "{{ domibus_bin_tc_jks_instance_identity }}"
+    password: "{{ domibus_bin_tc_jks_keystore_password }}"
+    keystore_type: jks
+    force: true
+    owner: root
+    group: "{{ domibus_bin_tc_system_group }}"
+    mode: "0640"
+  notify: domibus is restarted
+
+- name: Trusted public certificates exist as PEM files
+  copy:
+    dest: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus/keystores/truststore-pem/{{ item.alias }}"
+    content: "{{ item.certificate }}"
+    owner: root
+    group: "{{ domibus_bin_tc_system_group }}"
+    mode: "0640"
+  notify: domibus is restarted
+  loop: "{{ domibus_bin_tc_jks_trusted_certificates }}"
+
+- name: Currently trusted certificates are listed
+  find:
+    paths: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus/keystores/truststore-pem/"
+  register: _domibus_bin_tc_current_certificates_find
+
+- set_fact:
+    _domibus_bin_tc_current_certificates: "{{ _domibus_bin_tc_current_certificates_find.files | map(attribute='path') | map('basename') }}"
+- set_fact:
+    _domibus_bin_tc_invalid_certificates: "{{ _domibus_bin_tc_current_certificates | difference(domibus_bin_tc_jks_trusted_certificates | map(attribute='alias')) }}"
+
+- name: Check whether our the current trust store has the right password
+  command:
+    cmd: keytool -list -keystore "{{ domibus_bin_tc_deploy_dir | quote }}/domibus/conf/domibus/keystores/gateway_truststore.jks"
+    stdin: "{{ domibus_bin_tc_jks_truststore_password }}"
+  register: _domibus_bin_tc_truststore_is_password_valid_cmd
+  changed_when: false
+  failed_when: _domibus_bin_tc_truststore_is_password_valid_cmd.rc not in [0, 1]
+
+- name: Current trust store with wrong password is removed
+  file:
+    path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus/keystores/gateway_truststore.jks"
+    state: absent
+  when: _domibus_bin_tc_truststore_is_password_valid_cmd.rc == 1
+
+- name: Trust store does not contain invalid certificates
+  java_cert: 
+    keystore_path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus/keystores/gateway_truststore.jks"
+    keystore_type: JKS
+    keystore_pass: "{{ domibus_bin_tc_jks_truststore_password }}"
+    cert_alias: "{{ item }}"
+    state: absent
+  loop: "{{ _domibus_bin_tc_invalid_certificates }}"
+  ignore_errors: true
+  notify: domibus is restarted
+
+- name: Trust store contains peers' certificates
+  java_cert:
+    keystore_path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus/keystores/gateway_truststore.jks"
+    keystore_type: JKS
+    keystore_pass: "{{ domibus_bin_tc_jks_truststore_password }}"
+    keystore_create: yes
+    cert_path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus/keystores/truststore-pem/{{ item.alias }}"
+    cert_alias: "{{ item.alias }}"
+  loop: "{{ domibus_bin_tc_jks_trusted_certificates }}"
+  notify: domibus is restarted
+
+- name: Trust store has appropriate permissions
+  file:
+    path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus/keystores/gateway_truststore.jks"
+    owner: "{{ domibus_bin_tc_system_user }}"
+    group: "{{ domibus_bin_tc_system_group }}"
+    mode: "0600"
+
+- name: PEM files of invalid certificates do not exist
+  file:
+    path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus/keystores/truststore-pem/{{ item }}"
+    state: absent
+  loop: "{{ _domibus_bin_tc_invalid_certificates }}"

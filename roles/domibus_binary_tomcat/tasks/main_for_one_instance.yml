@@ -1,0 +1,17 @@
+---
+- import_tasks: system_requirements.yml
+  tags: domibus_binary_tomcat::system_requirements
+- import_tasks: installation.yml
+  tags: domibus_binary_tomcat::installation
+- import_tasks: configuration.yml
+  tags: domibus_binary_tomcat::configuration
+- import_tasks: jks.yml
+  tags: domibus_binary_tomcat::jks
+- import_tasks: database.yml
+  tags: domibus_binary_tomcat::database
+- import_tasks: user_accounts.yml
+  tags: domibus_binary_tomcat::user_accounts
+- import_tasks: systemd.yml
+  tags: domibus_binary_tomcat::systemd
+- import_tasks: live_configuration.yml
+  tags: domibus_binary_tomcat::live_configuration

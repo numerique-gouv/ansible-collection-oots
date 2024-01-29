@@ -1,0 +1,31 @@
+# Adapté du fichier de service tomcat9
+[Unit]
+Description=Apache Tomcat {{ domibus_bin_tc_tomcat_version }} for Domibus {{ domibus_bin_tc_version }} ({{ domibus_bin_tc_deploy_env }} environment)
+After=network.target mysql.service
+Requires=mysql.service
+RequiresMountsFor={{ domibus_bin_tc_base_dir }}
+
+[Service]
+Environment="CATALINA_HOME=/usr/share/tomcat{{ domibus_bin_tc_tomcat_version }}"
+Environment="CATALINA_BASE={{ domibus_bin_tc_deploy_dir }}/domibus"
+Environment="CATALINA_TMPDIR={{ domibus_bin_tc_deploy_dir }}/domibus/temp"
+Environment="JAVA_OPTS=-Xms4096m -Xmx4096m -Ddomibus.config.location={{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus -Ddomibus.work.location={{ domibus_bin_tc_deploy_dir }}/domibus"
+
+Type=simple
+ExecStart=/bin/sh /usr/libexec/tomcat{{ domibus_bin_tc_tomcat_version }}/tomcat-start.sh
+SuccessExitStatus=143
+Restart=on-abort
+
+SyslogIdentifier=domibus_{{ domibus_bin_tc_deploy_env }}-{{ domibus_bin_tc_version }}
+
+User={{ domibus_bin_tc_system_user }}
+Group={{ domibus_bin_tc_system_group }}
+PrivateTmp=yes
+NoNewPrivileges=true
+CacheDirectory=domibus
+CacheDirectoryMode=750
+ProtectSystem=strict
+ReadWritePaths={{ domibus_bin_tc_deploy_dir }}/domibus
+
+[Install]
+WantedBy=multi-user.target

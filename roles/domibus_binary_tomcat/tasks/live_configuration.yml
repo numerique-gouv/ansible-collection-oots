@@ -1,0 +1,130 @@
+---
+- set_fact:
+    _domibus_bin_tc_api_base_url: "http://{{ domibus_bin_tc_listen_address | ansible.utils.ipv6 | ternary('[' ~ domibus_bin_tc_listen_address ~ ']', domibus_bin_tc_listen_address) }}:{{ domibus_bin_tc_listen_port }}/domibus"
+
+- block:
+    - name: Domibus REST API is ready
+      uri:
+        url: "{{ _domibus_bin_tc_api_base_url }}/ext/monitoring/application/status"
+        method: GET
+        url_username: "{{ domibus_bin_tc_ansible_api_credentials.login }}"
+        url_password: "{{ domibus_bin_tc_ansible_api_credentials.password }}"
+        force_basic_auth: true
+      retries: 6
+      delay: 10
+
+    - name: Current live trust store is known
+      uri:
+        url: "{{ _domibus_bin_tc_api_base_url }}/ext/truststore/entries"
+        method: GET
+        url_username: "{{ domibus_bin_tc_ansible_api_credentials.login }}"
+        url_password: "{{ domibus_bin_tc_ansible_api_credentials.password }}"
+        force_basic_auth: true
+      register: _domibus_bin_tc_get_live_trust_store
+    
+    - set_fact:
+        _domibus_bin_tc_live_trust_store: "{{ _domibus_bin_tc_get_live_trust_store.json }}"
+    
+    - name: Details on wanted certificates are known
+      community.crypto.x509_certificate_info:
+        content: "{{ item.certificate }}"
+      register: _domibus_bin_tc_wanted_certs_results
+      loop: "{{ domibus_bin_tc_jks_trusted_certificates }}"
+      delegate_to: localhost
+      run_once: true
+      become: false
+    
+    - set_fact:
+        _domibus_bin_tc_wanted_certs: []
+    - set_fact:
+        _domibus_bin_tc_wanted_certs: "{{ _domibus_bin_tc_wanted_certs + [{'alias': item.item.alias, 'pem': item.item.certificate, 'sha256': item.fingerprints.sha256 | regex_replace(':', '')}] }}"
+      loop: "{{ _domibus_bin_tc_wanted_certs_results.results }}"
+     
+    - name: Unwanted certificates are deleted from live trust store
+      uri:
+        url: "{{ _domibus_bin_tc_api_base_url }}/ext/truststore/entries/{{ item.name }}"
+        method: DELETE
+        url_username: "{{ domibus_bin_tc_ansible_api_credentials.login }}"
+        url_password: "{{ domibus_bin_tc_ansible_api_credentials.password }}"
+        force_basic_auth: true
+      loop: "{{ _domibus_bin_tc_live_trust_store }}"
+      register: _domibus_bin_tc_live_delete_cert
+      when: ((_domibus_bin_tc_wanted_certs | selectattr('alias', '==', item.name)) == [] or (_domibus_bin_tc_wanted_certs | selectattr('sha256', '==', item.fingerprints)) == [])
+      changed_when: _domibus_bin_tc_live_delete_cert.status == 200
+    
+    - name: Missing live certificates are in /tmp as files
+      copy:
+        dest: /tmp/{{ item.alias }}.pem
+        content: "{{ item.pem }}"
+      loop: "{{ _domibus_bin_tc_wanted_certs }}"
+      when: ((_domibus_bin_tc_live_trust_store | selectattr('name', '==', item.alias)) == [] or (_domibus_bin_tc_live_trust_store | selectattr('fingerprints', '==', item.sha256)) == [])
+
+    - name: Missing certificates are in live trust store
+      command:
+        cmd: "curl -u {{ domibus_bin_tc_ansible_api_credentials.login | quote }} -XPOST -F alias={{ item.alias | quote }} -F file=@/tmp/{{ item.alias | quote }}.pem https://domibus.eu.api.gouv.fr/ext/truststore/entries"
+        stdin: "{{ domibus_bin_tc_ansible_api_credentials.password }}"
+      loop: "{{ _domibus_bin_tc_wanted_certs }}"
+      register: _domibus_bin_tc_live_post_cert
+      when: ((_domibus_bin_tc_live_trust_store | selectattr('name', '==', item.alias)) == [] or (_domibus_bin_tc_live_trust_store | selectattr('fingerprints', '==', item.sha256)) == [])
+      changed_when: "'was not added' not in _domibus_bin_tc_live_post_cert.stdout"
+
+    - name: Certificates in /tmp are removed
+      file:
+        path: /tmp/{{ item.alias }}.pem
+        state: absent
+      loop: "{{ _domibus_bin_tc_wanted_certs }}"
+      when: ((_domibus_bin_tc_live_trust_store | selectattr('name', '==', item.alias)) == [] or (_domibus_bin_tc_live_trust_store | selectattr('fingerprints', '==', item.sha256)) == [])
+ 
+    - name: Current PMode ID is known
+      uri:
+        url: "{{ _domibus_bin_tc_api_base_url }}/ext/pmode/current"
+        method: GET
+        url_username: "{{ domibus_bin_tc_ansible_api_credentials.login }}"
+        url_password: "{{ domibus_bin_tc_ansible_api_credentials.password }}"
+        force_basic_auth: true
+      register: _domibus_bin_tc_live_pmode_id
+      
+    - name: Content of current live PMode is known
+      uri:
+        url: "{{ _domibus_bin_tc_api_base_url }}/ext/pmode/{{ _domibus_bin_tc_live_pmode_id.json.id }}"
+        method: GET
+        url_username: "{{ domibus_bin_tc_ansible_api_credentials.login }}"
+        url_password: "{{ domibus_bin_tc_ansible_api_credentials.password }}"
+        force_basic_auth: true
+        return_content: true
+      register: _domibus_bin_tc_live_pmode
+
+    - name: Current git commit is known
+      command:
+        cmd: git rev-parse HEAD
+        chdir: "{{ playbook_dir }}"
+      delegate_to: localhost
+      become: false
+      run_once: true
+      ignore_errors: true
+      register: _domibus_bin_tc_local_git_commit_cmd
+      when: _domibus_bin_tc_live_pmode.content != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
+      changed_when: false
+
+    - name: PMode is uploaded to server
+      copy:
+        dest: /tmp/pmode.xml
+        content: "{{ domibus_bin_tc_pmode_content }}"
+        mode: 0600
+      when: _domibus_bin_tc_live_pmode.content != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
+
+    - name: Live PMode is updated with our content
+      command:
+        cmd: "curl -u {{ domibus_bin_tc_ansible_api_credentials.login | quote }} -XPOST -F description={{ ('Ansible upload at commit ' ~ _domibus_bin_tc_local_git_commit_cmd.stdout) | quote }} -F file=@/tmp/pmode.xml {{ _domibus_bin_tc_api_base_url|quote }}/ext/pmode"
+        stdin: "{{ domibus_bin_tc_ansible_api_credentials.password }}"
+      register: _domibus_bin_tc_curl_post_pmode
+      when: _domibus_bin_tc_live_pmode.content != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
+      failed_when: "'ERROR' in _domibus_bin_tc_curl_post_pmode.stdout"
+
+    - name: PMode temporary file is deleted
+      file:
+        path: /tmp/pmode.xml
+        state: absent
+      when: _domibus_bin_tc_live_pmode.content != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
+
+  when: domibus_bin_tc_systemd_service_enabled

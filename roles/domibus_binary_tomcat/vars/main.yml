@@ -1,0 +1,122 @@
+---    
+domibus_bin_tc_deploy_env_default: sandbox
+domibus_bin_tc_system_user_default: domibus_binary_{{ domibus_bin_deploy_env }}
+domibus_bin_tc_system_group_default: "{{ domibus_bin_system_user }}"
+domibus_bin_tc_listen_address_default: ::1
+domibus_bin_tc_listen_port_default: 8181
+domibus_bin_tc_base_dir_default: /var/lib/{{ domibus_bin_system_user }}
+domibus_bin_tc_version_default: '5.1.2'
+domibus_bin_tc_distribution_checksum_default: sha256:28d123485f5796d858c96d8aad6acb68e8734ac262ae430fd9454d5f1f5d5f6c
+domibus_bin_tc_tomcat_version_default: 9
+domibus_bin_tc_tomcat_shutdown_port_default: 58291
+domibus_bin_tc_tomcat_shutdown_command_default: DOMIBUSSHUTDOWNCMD
+domibus_bin_tc_deploy_dir_default: "{{ domibus_bin_base_dir }}/versions/{{ domibus_bin_version }}"
+domibus_bin_tc_systemd_service_name_default: domibus_binary_{{ domibus_bin_deploy_env }}
+domibus_bin_tc_systemd_service_enabled_default: true
+domibus_bin_tc_sql_scripts_version_default: '1.2'
+domibus_bin_tc_permissions_adjustment_default:
+  - { path: domibus, type: directory, owner: root, group: "{{domibus_bin_system_group}}", mode: "0750", recurse: false }
+  - { path: domibus/work, type: directory, owner: "{{domibus_bin_system_user}}", group: "{{domibus_bin_system_group}}", mode: "u+rwX,go-rwx", recurse: true }
+  - { path: domibus/temp, type: directory, owner: "{{domibus_bin_system_user}}", group: "{{domibus_bin_system_group}}", mode: "u+rwX,go-rwx", recurse: true }
+  - { path: domibus/conf, type: directory, owner: root, group: "{{domibus_bin_system_group}}", mode: "u+rwX,g+rX-w,o-rwx", recurse: true }
+  - { path: domibus/conf/Catalina, type: directory, owner: "{{domibus_bin_system_user}}", group: "{{domibus_bin_system_group}}", mode: "u+rwX,go-rwx", recurse: true }
+  - { path: domibus/conf/domibus/keystores, type: directory, owner: root, group: "{{domibus_bin_system_group}}", mode: "u+rwX,g+rX,o-rwx", recurse: true }
+  - { path: domibus/conf/domibus/keystores/truststore-pem, type: directory, owner: root, group: "{{domibus_bin_system_group}}", mode: "u+rwX,g+rX,o-rwx", recurse: true }
+  - { path: domibus/conf/domibus/keystores/backups, type: directory, owner: "{{domibus_bin_system_user}}", group: "{{domibus_bin_system_group}}", mode: "u+rwX,go-rwx", recurse: true }
+  - { path: domibus/lib, type: directory, owner: root, group: "{{domibus_bin_system_group}}", mode: "u+rwX,g+rX-w,o-rwx", recurse: true }
+  - { path: domibus/logs, type: directory, owner: "{{domibus_bin_system_user}}", group: "{{domibus_bin_system_group}}", mode: "u+rwX,go-rwx", recurse: true }
+  - { path: domibus/webapps, type: directory, owner: "{{domibus_bin_system_user}}", group: "{{domibus_bin_system_group}}", mode: "u+rwX,go-rwx", recurse: true }
+  - { path: domibus/webapps/domibus.war, type: file, owner: root, group: "{{domibus_bin_system_group}}", mode: "0640" }
+domibus_bin_tc_mysql_db_default: domibus_{{ domibus_bin_deploy_env }}
+domibus_bin_tc_mysql_host_default: localhost
+domibus_bin_tc_mysql_port_default: 3306
+domibus_bin_tc_mysql_login_default: edelivery_{{ domibus_bin_deploy_env }}
+domibus_bin_tc_mysql_password_default: edelivery_{{ domibus_bin_deploy_env }}
+domibus_bin_tc_mysql_ansible_host_default: "{{ inventory_hostname }}"
+domibus_bin_tc_mysql_backup_dir_default: "{{ domibus_bin_base_dir }}/database-backup"
+domibus_bin_tc_activemq_listen_port_default: 61616
+domibus_bin_tc_java_properties_default:
+  - { property: 'domibus.database.serverName', value: '{{ domibus_bin_mysql_host }}' }
+  - { property: 'domibus.database.port', value: '{{ domibus_bin_mysql_port }}' }
+  - { property: 'domibus.database.schema', value: '{{ domibus_bin_mysql_db }}' }
+  - { property: 'domibus.datasource.user', value: '{{ domibus_bin_mysql_login }}', censor_log: true }
+  - { property: 'domibus.datasource.password', value: '{{ domibus_bin_mysql_password }}', censor_log: true }
+  - { property: 'domibus.datasource.driverClassName', value: org.mariadb.jdbc.Driver }
+  - { property: 'domibus.datasource.url', value: 'jdbc:mysql://${domibus.database.serverName}:${domibus.database.port}/${domibus.database.schema}?useSSL=false&useLegacyDatetimeCode=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' }
+  - { property: 'domibus.entityManagerFactory.jpaProperty.hibernate.connection.driver_class', value: org.mariadb.jdbc.Driver }
+  - { property: 'activeMQ.transportConnector.uri', value: 'tcp://${activeMQ.broker.host}:{{ domibus_bin_activemq_listen_port }}' }
+  - { property: 'domibus.security.key.private.alias', value: '{{ domibus_bin_jks_instance_identity }}' }
+  - { property: 'domibus.security.key.private.password', value: '{{ domibus_bin_jks_instance_private_key_password }}' }
+  - { property: 'domibus.security.truststore.password', value: '{{ domibus_bin_jks_truststore_password }}' }
+  - { property: 'domibus.security.keystore.password', value: '{{ domibus_bin_jks_keystore_password }}' }
+  - { property: 'domibus.auth.unsecureLoginAllowed', value: 'false' }
+domibus_bin_tc_additional_files_default: [] # list of dicts (keys: src, dest, owner, group, mode)
+domibus_bin_tc_jks_instance_identity_default: blue_gw
+domibus_bin_tc_jks_instance_private_key_password_default: test123
+domibus_bin_tc_jks_instance_private_key_default: |
+  -----BEGIN ENCRYPTED PRIVATE KEY-----
+  MIIFHDBOBgkqhkiG9w0BBQ0wQTApBgkqhkiG9w0BBQwwHAQIOR6Xnbd3S40CAggA
+  MAwGCCqGSIb3DQIJBQAwFAYIKoZIhvcNAwcECDO+pllx983qBIIEyGWlh47zayqn
+  Z1qxVARlXZUunah6Quu5rjHD6VwizAR66BGGRwI20vqdBbPV2pp1OeJR2bIdjQkC
+  HZjLk3oZrUqzWDBUhExC5OY4WzBGtOeY65UeuExeh8OlAWvFb2kdR2WGc7XkWt9K
+  1CtNemaHhOatJtFVhf7ghraEwk7fvbYTcjodClsWN4+c2qaUTxGa94UwfFkuqFTh
+  /WmS/e2YNdml+NNrKUb95ck3r/By8KfWos5pUeTGfNuaM12fMtsoT5r+XueL/3wF
+  ln/T5x7/7LtjOfUSCJ70RKHpNnbZqpF2DQgRN8cXYpkrpmKSPti8PpKMhNl8G/VL
+  a+Dzk3RqJcfBIEwgd7gBWzpfHR+d1U5igUWG8mWaigvr9ynmGBItw3CuQIC97vE9
+  UEiN3Qdi20dkamSwPyrEvJqJIqpfJQLM28BKE83X5EvGEYW0UvRMhMpzj/OyiyzF
+  lnAa3OV6zSKhh3f9mBTSNC/dK2BCaITem0ecnZzO5iSiZIF4DxcS5Qlbg049cLI0
+  RkafpZ/JgO6/HmcBeD2btPPvfS/mvtHcSxn9tT+8IEKbLQ38wGyTeGdfLmbhuBjN
+  bssc4/kYpCa/rL2B06woJUTVI0uCjVsk817E31Xz9foDX/Mq8EaMjjDCDHmdVYjm
+  EVjoHwmfoUUD+0W+q0MBz01HcWxLq0jlZGY8f+VsZi6uF0GSnvh0CCtU8nrtudP8
+  YtEpTUvp2sUbTH1Gc5HIlbBnVnpYnRuirUiukkRLqSU54EsxUCCCUVx+O8TQHcfV
+  EtMqulTjq1cAYkGjn/MmO5ou9e8LxHiFZP+72KoNaXOdyrJd9J8z9r6RYCDVqFvG
+  rcQJ+qO1Op3iVgPJkj1NasiEard/Tg4lqOXHJFmRwnkG5X/ylcO+6PnDjzCdplFJ
+  nqHYJkU3yKtIbEVg0rdX+My+DwQrXdlq55H55J8xY6bbpE26O1n43h74tNxrrphs
+  Nt38y+Ll4kzC8Q/o7VALPo9phWyZ26fVwhT1dRtCCT4c9EATwC7ZnyGBuH8ZiSH3
+  ON3Dr8WluY77BhQ2iariTlwZucFvkYEW4Vv4C9lJvtzxrxQOCwl+EkdHFLr/ivC/
+  HkEp4n9eNrSqnxUWGpVwCV8jDuxAXeFhi7z+htyvsHCFXio/B7I0VbqFQVISlxhN
+  Dl1DZwypuINCJ/NJ//2RW55em1N5VyQ0H3WAzU4/sPwcoTHA5c81qgM0VJzjB06u
+  anJr3yeL3nCmcCJARJrv2hfHRxpJ6Rr+l9Wsc2xjPy6xCTJezvw0F6q7U4iG6REM
+  rNyDT4vsQrVCglLzkWEWCcfiMpq2eLvhf8AyGkmGzDv5oWYHKkCOrNnxaX6vw1rh
+  sdAXR9eMOs/a4VuIheUd/PW8QJo2ROs8fHyl/4p8z02iuvs36vmn28ScwRhvbZ77
+  +emLE9+mvWLO+/TW2L76oiuIi883xdGntAyqxl+MUtLvArVsO/MTM0WVLv4fhgOC
+  xmBmqWVKKRx3jdlqDBu3O0T62zN/W/sdn16u9vxIbwg8+vc81GkdyCzjEwvCosds
+  HIwrL2y9ZTusp0o41QxmEr1dlEljPUZGWIP0O43JsHQiCUZUieN1hkhzBNpJEs/R
+  x+MXRSSqJJ6x3IA23vzCCA==
+  -----END ENCRYPTED PRIVATE KEY-----
+domibus_bin_tc_jks_instance_certificate_default: |
+  -----BEGIN CERTIFICATE-----
+  MIIEAzCCAuugAwIBAgIUIOKY2rc3X0V585TkXPjGRg8aTi8wDQYJKoZIhvcNAQEL
+  BQAwgZAxCzAJBgNVBAYTAkZSMTgwNgYDVQQKDC9EaXJlY3Rpb24gaW50ZXJtaW5p
+  c3TDg8KpcmllbGxlIGR1IG51bcODwqlyaXF1ZTENMAsGA1UECwwET09UUzEQMA4G
+  A1UEAwwHYmx1ZV9ndzEmMCQGCSqGSIb3DQEJARYXc3lzYWRtaW5AZXUuYXBpLmdv
+  dXYuZnIwHhcNMjMxMjExMjAzNzM3WhcNMjQxMjEwMjAzNzM3WjCBkDELMAkGA1UE
+  BhMCRlIxODA2BgNVBAoML0RpcmVjdGlvbiBpbnRlcm1pbmlzdMODwqlyaWVsbGUg
+  ZHUgbnVtw4PCqXJpcXVlMQ0wCwYDVQQLDARPT1RTMRAwDgYDVQQDDAdibHVlX2d3
+  MSYwJAYJKoZIhvcNAQkBFhdzeXNhZG1pbkBldS5hcGkuZ291di5mcjCCASIwDQYJ
+  KoZIhvcNAQEBBQADggEPADCCAQoCggEBALrB+89gWjcVLchPEJLFcQzcdDQoPB22
+  S9nTaOHqB23DRkttx8eCWs6QC6OMmffwz4/bNO3jULLHXyTnF1M442/fUAFxbW7Q
+  aupVrZ6r40wNc+VX7G+NjpmwaK6xL4F4bApIhOp6s/KG9kPuw5a5oEeVybmOa3Uf
+  RqkrskEXimZnnIBcJbypfpkADTtEpNgfXBthK4udWqfqMb7nCZff77rNdRp5oonE
+  tKuurjAV0IK9QYwT2yLbTyAlE5C+tsuaQRMeWtvly3thNuqFdE6sadrEj3Lju4LM
+  QvMuLIxsAImlxizDnbd0MofpJP+r0UKfhunvUL425Mq7FLGFdNrktokCAwEAAaNT
+  MFEwHQYDVR0OBBYEFMp4Fxhr5sIYDsy94k+hZe/jA3BhMB8GA1UdIwQYMBaAFMp4
+  Fxhr5sIYDsy94k+hZe/jA3BhMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQEL
+  BQADggEBAFeNOKogI3HSZ2Lt5cdsqZoZAAb9zH2zynofeQGB9qXj8nGygONs/Vgh
+  5kfgwW/jMRZi4+z/MxLvabPH7JMySU1ga46OA6pL/EOF+y4dvzSAl/hYyi1kThWQ
+  Gk/fBOBo+pUb563VrliNcj+o4V+jf11a/46fzzrh4vKtGd3QBSNyXkiFEDp4SPF0
+  LWZOWqcNE4gkO/9eqkvkucKVRFCKiOq+vDfxFxFnViYbCxFqbyizR3t4rXtvXcsF
+  rFIRWQm3YMKrtxojieaGarhZfOaMdD1G9onykrG+FtcEYeZPB/d2l7xRE3mSHTcS
+  K9ZA0EQJ0k/RRoP+p/wuib4zmA7zCP4=
+  -----END CERTIFICATE-----
+domibus_bin_tc_jks_keystore_password_default: test123
+domibus_bin_tc_jks_truststore_password_default: test123
+domibus_bin_tc_jks_trusted_certificates_default:
+  - alias: "{{ domibus_bin_jks_instance_identity }}"
+    certificate: "{{ domibus_bin_jks_instance_certificate }}"
+domibus_bin_tc_pmode_content_default: ''
+domibus_bin_tc_admin_console_users_default: []
+domibus_bin_tc_admin_plugin_users_default:
+  - login: ansible
+    password: 'shek3Aeduog4shaixiT0aeraeQuaiyi2'
+domibus_bin_tc_ansible_api_credentials_default: "{{ (domibus_bin_admin_plugin_users | selectattr('login', '==', 'ansible'))[0] }}"

@@ -1,0 +1,82 @@
+---
+- name: Directories and files permissions are adjusted in Domibus deployment directory
+  file:
+    path: "{{ domibus_bin_tc_deploy_dir }}/{{ item.path }}"
+    state: "{{ item.type }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    recurse: "{{ item.recurse | default(omit) }}"
+    follow: no
+  loop: "{{ domibus_bin_tc_permissions_adjustment }}"
+  when: "item.type in ['file', 'directory']"
+
+- name: domibus.properties settings are configured
+  lineinfile:
+    path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/domibus/domibus.properties"
+    line: "{{ java_prop.property }}={{ java_prop.value }}"
+    regexp: '^\s*{{ java_prop.property | regex_escape }}\s*='
+    insertafter: '^#\s*{{ java_prop.property | regex_escape }}\s*='
+    firstmatch: yes
+  no_log: "{{ java_prop.censor_log|default(False) }}"
+  loop: "{{ domibus_bin_tc_java_properties }}"
+  loop_control:
+    loop_var: java_prop
+  notify: domibus is restarted
+
+- name: Count number of Tomcat connectors configured in server.xml
+  xml:
+    path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/server.xml"
+    xpath: /Server/Service/Connector
+    count: true
+  register: _domibus_bin_tc_tomcat_connectors
+
+- name: Tomcat has not more than one Connector
+  xml:
+    path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/server.xml"
+    xpath: /Server/Service/Connector[position()>1]
+    state: absent
+  when: _domibus_bin_tc_tomcat_connectors.count > 1
+  notify: domibus is restarted
+
+- name: Tomcat has one Connector
+  xml:
+    path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/server.xml"
+    xpath: /Server/Service
+    add_children: [Connector]
+  when: _domibus_bin_tc_tomcat_connectors.count == 0
+  notify: domibus is restarted
+
+- name: Tomcat Connector listens on specified address and port
+  xml:
+    path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/server.xml"
+    xpath: /Server/Service/Connector
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.value }}"
+  loop:
+    - { attribute: port, value: "{{ domibus_bin_tc_listen_port }}" }
+    - { attribute: address, value: "{{ domibus_bin_tc_listen_address }}" }
+    - { attribute: protocol, value: HTTP/1.1 }
+    - { attribute: connectionTimeout, value: "20000" }
+  notify: domibus is restarted
+
+- name: Tomcat shutdown port and command are configured as required
+  xml:
+    path: "{{ domibus_bin_tc_deploy_dir }}/domibus/conf/server.xml"
+    xpath: /Server
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.value }}"
+  loop:
+    - { attribute: port, value: "{{ domibus_bin_tc_tomcat_shutdown_port }}" }
+    - { attribute: shutdown, value: "{{ domibus_bin_tc_tomcat_shutdown_command }}" }
+  notify: domibus is restarted
+
+- name: Additional configuration files are present
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ domibus_bin_tc_deploy_dir }}/{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ domibus_bin_tc_additional_files }}"
+  notify: domibus is restarted

@@ -1,0 +1,54 @@
+---
+- include_tasks: main_for_one_instance.yml
+  tags:
+    - domibus_binary_tomcat::system_requirements
+    - domibus_binary_tomcat::installation
+    - domibus_binary_tomcat::configuration
+    - domibus_binary_tomcat::jks
+    - domibus_binary_tomcat::database
+    - domibus_binary_tomcat::user_accounts
+    - domibus_binary_tomcat::systemd
+    - domibus_binary_tomcat::live_configuration
+  loop: "{{ domibus_bin_tc_instances | default([{}]) }}"
+  loop_control:
+    loop_var: _domibus_bin_tc_instance
+  vars:
+    domibus_bin_tc_deploy_env: "{{ _domibus_bin_tc_instance.deploy_env | default(domibus_bin_tc_deploy_env_default) }}"
+    domibus_bin_tc_system_user: "{{ _domibus_bin_tc_instance.system_user | default(domibus_bin_tc_system_user_default) }}"
+    domibus_bin_tc_system_group: "{{ _domibus_bin_tc_instance.system_group | default(domibus_bin_tc_system_group_default) }}"
+    domibus_bin_tc_listen_address: "{{ _domibus_bin_tc_instance.listen_address | default(domibus_bin_tc_listen_address_default) }}"
+    domibus_bin_tc_listen_port: "{{ _domibus_bin_tc_instance.listen_port | default(domibus_bin_tc_listen_port_default) }}"
+    domibus_bin_tc_base_dir: "{{ _domibus_bin_tc_instance.base_dir | default(domibus_bin_tc_base_dir_default) }}"
+    domibus_bin_tc_version: "{{ _domibus_bin_tc_instance.version | default(domibus_bin_tc_version_default) }}"
+    domibus_bin_tc_distribution_checksum: "{{ _domibus_bin_tc_instance.distribution_checksum | default(domibus_bin_tc_distribution_checksum_default) }}"
+    domibus_bin_tc_tomcat_version: "{{ _domibus_bin_tc_instance.tomcat_version | default(domibus_bin_tc_tomcat_version_default) }}"
+    domibus_bin_tc_tomcat_shutdown_port: "{{ _domibus_bin_tc_instance.tomcat_shutdown_port | default(domibus_bin_tc_tomcat_shutdown_port_default) }}"
+    domibus_bin_tc_tomcat_shutdown_command: "{{ _domibus_bin_tc_instance.tomcat_shutdown_command | default(domibus_bin_tc_tomcat_shutdown_command_default) }}"
+    domibus_bin_tc_deploy_dir: "{{ _domibus_bin_tc_instance.deploy_dir | default(domibus_bin_tc_deploy_dir_default) }}"
+    domibus_bin_tc_systemd_service_name: "{{ _domibus_bin_tc_instance.systemd_service_name | default(domibus_bin_tc_systemd_service_name_default) }}"
+    domibus_bin_tc_systemd_service_enabled: "{{ _domibus_bin_tc_instance.systemd_service_enabled | default(domibus_bin_tc_systemd_service_enabled_default) }}"
+    domibus_bin_tc_sql_scripts_version: "{{ _domibus_bin_tc_instance.sql_scripts_version | default(domibus_bin_tc_sql_scripts_version_default) }}"
+    domibus_bin_tc_permissions_adjustment: "{{ _domibus_bin_tc_instance.permissions_adjustment | default(domibus_bin_tc_permissions_adjustment_default) }}"
+    domibus_bin_tc_mysql_db: "{{ _domibus_bin_tc_instance.mysql_db | default(domibus_bin_tc_mysql_db_default) }}"
+    domibus_bin_tc_mysql_host: "{{ _domibus_bin_tc_instance.mysql_host | default(domibus_bin_tc_mysql_host_default) }}"
+    domibus_bin_tc_mysql_port: "{{ _domibus_bin_tc_instance.mysql_port | default(domibus_bin_tc_mysql_port_default) }}"
+    domibus_bin_tc_mysql_login: "{{ _domibus_bin_tc_instance.mysql_login | default(domibus_bin_tc_mysql_login_default) }}"
+    domibus_bin_tc_mysql_password: "{{ _domibus_bin_tc_instance.mysql_password | default(domibus_bin_tc_mysql_password_default) }}"
+    domibus_bin_tc_mysql_ansible_host: "{{ _domibus_bin_tc_instance.mysql_ansible_host | default(domibus_bin_tc_mysql_ansible_host_default) }}"
+    domibus_bin_tc_mysql_backup_dir: "{{ _domibus_bin_tc_instance.mysql_backup_dir | default(domibus_bin_tc_mysql_backup_dir_default) }}"
+    domibus_bin_tc_java_properties: "{{ _domibus_bin_tc_instance.java_properties | default(domibus_bin_tc_java_properties_default) }}"
+    domibus_bin_tc_additional_files: "{{ _domibus_bin_tc_instance.additional_files | default(domibus_bin_tc_additional_files_default) }}"
+    domibus_bin_tc_activemq_listen_port: "{{ _domibus_bin_tc_instance.activemq_listen_port | default(domibus_bin_tc_activemq_listen_port_default) }}"
+    domibus_bin_tc_jks_instance_identity: "{{ _domibus_bin_tc_instance.jks_instance_identity | default(domibus_bin_tc_jks_instance_identity_default) }}"
+    domibus_bin_tc_jks_instance_private_key_password: "{{ _domibus_bin_tc_instance.jks_instance_private_key_password | default(domibus_bin_tc_jks_instance_private_key_password_default) }}"
+    domibus_bin_tc_jks_instance_private_key: "{{ _domibus_bin_tc_instance.jks_instance_private_key | default(domibus_bin_tc_jks_instance_private_key_default) }}"
+    domibus_bin_tc_jks_instance_certificate: "{{ _domibus_bin_tc_instance.jks_instance_certificate | default(domibus_bin_tc_jks_instance_certificate_default) }}"
+    domibus_bin_tc_jks_truststore_password: "{{ _domibus_bin_tc_instance.jks_truststore_password | default(domibus_bin_tc_jks_truststore_password_default) }}"
+    domibus_bin_tc_jks_trusted_certificates: "{{ _domibus_bin_tc_instance.jks_trusted_certificates | default(domibus_bin_tc_jks_trusted_certificates_default) }}"
+    domibus_bin_tc_jks_keystore_password: "{{ _domibus_bin_tc_instance.jks_keystore_password | default(domibus_bin_tc_jks_keystore_password_default) }}"
+    domibus_bin_tc_admin_console_users: "{{ _domibus_bin_tc_instance.admin_console_users | default(domibus_bin_tc_admin_console_users_default) }}"
+    domibus_bin_tc_admin_plugin_users: "{{ _domibus_bin_tc_instance.admin_plugin_users | default(domibus_bin_tc_admin_plugin_users_default) }}"
+    domibus_bin_tc_ansible_api_credentials: "{{ _domibus_bin_tc_instance.ansible_api_credentials | default(domibus_bin_tc_ansible_api_credentials_default) }}"
+    domibus_bin_tc_pmode_content: "{{ _domibus_bin_tc_instance.pmode_content | default(domibus_bin_tc_pmode_content_default) }}"
+  when: domibus_bin_tc_only_deploy is not defined or domibus_bin_tc_only_deploy == domibus_bin_tc_deploy_env
+  no_log: true

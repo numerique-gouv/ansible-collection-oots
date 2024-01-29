@@ -1,0 +1,10 @@
+namespace: betagouv
+name: oots
+version: 1.0.0
+readme: README.md
+authors:
+  - Aurélien Merel <aurelien.merel@beta.gouv.fr>
+description: Ansible roles for the European Only-Once Technical System (OOTS)
+license: WTFPL
+repository: https://github.com/betagouv/ansible-collection-oots
+issues: https://github.com/betagouv/ansible-collection-oots/issues

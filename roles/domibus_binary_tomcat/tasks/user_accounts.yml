@@ -1,0 +1,99 @@
+---
+- name: Domibus console current user accounts are listed
+  mysql_query:
+    login_db: "{{ domibus_bin_tc_mysql_db }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+    query: SELECT USER_NAME FROM TB_USER
+  register: _domibus_bin_tc_current_console_users_query
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: Role ID for ROLE_ADMIN is known
+  mysql_query:
+    login_db: "{{ domibus_bin_tc_mysql_db }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+    query: SELECT ID_PK FROM TB_USER_ROLE WHERE ROLE_NAME='ROLE_ADMIN' ORDER BY ID_PK LIMIT 1
+  register: _domibus_bin_tc_admin_role_id_query
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- set_fact:
+    _domibus_bin_tc_current_console_users: "{{ _domibus_bin_tc_current_console_users_query.query_result.0 | map(attribute='USER_NAME') }}"
+    _domibus_bin_tc_admin_role_id: "{{ _domibus_bin_tc_admin_role_id_query.query_result.0.0.ID_PK }}"
+- set_fact:
+    _domibus_bin_tc_missing_admins: "{{ domibus_bin_tc_admin_console_users | map(attribute='login') | difference(_domibus_bin_tc_current_console_users) }}"
+
+- name: Missing Domibus admin console accounts are in the database
+  mysql_query:
+    login_db: "{{ domibus_bin_tc_mysql_db }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+    query: |
+      INSERT INTO TB_USER (USER_EMAIL, USER_ENABLED, USER_PASSWORD, USER_NAME, DEFAULT_PASSWORD, CREATED_BY, MODIFIED_BY, MODIFICATION_TIME)
+      VALUES (%(email)s, 1, %(password)s, %(login)s, 1, 'Ansible', 'Ansible', NOW())
+    named_args:
+      email: "{{ item.email }}"
+      password: "{{ item.password | password_hash(hashtype='blowfish', ident='2a', rounds=10) }}"
+      login: "{{ item.login }}"
+  loop: "{{ domibus_bin_tc_admin_console_users }}"
+  no_log: true
+  when: item.login in _domibus_bin_tc_missing_admins
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: All current console users' IDs are known
+  mysql_query:
+    login_db: "{{ domibus_bin_tc_mysql_db }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+    query: SELECT USER_NAME, ID_PK FROM TB_USER
+  register: _domibus_bin_tc_all_console_users_id_query
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: User IDs in roles table are known
+  mysql_query:
+    login_db: "{{ domibus_bin_tc_mysql_db }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+    query: SELECT USER_ID FROM TB_USER_ROLES
+  register: _domibus_bin_tc_console_users_id_in_roles_query
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- set_fact:
+    _domibus_bin_tc_console_users_id_in_roles: "{{ _domibus_bin_tc_console_users_id_in_roles_query.query_result.0 | map(attribute='USER_ID') }}"
+
+- name: Admin users not already in the roles table have ROLE_ADMIN
+  mysql_query:
+    login_db: "{{ domibus_bin_tc_mysql_db }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+    query: |
+      INSERT INTO TB_USER_ROLES (USER_ID, ROLE_ID, CREATED_BY)
+      VALUES (%(user_id)s, %(role_id)s, 'Ansible')
+    named_args:
+      user_id: "{{ ((_domibus_bin_tc_all_console_users_id_query.query_result.0 | selectattr('USER_NAME', '==', item))[0]['ID_PK']) }}"
+      role_id: "{{ _domibus_bin_tc_admin_role_id }}"
+  loop: "{{ domibus_bin_tc_admin_console_users | map(attribute='login') }}"
+  when: ((_domibus_bin_tc_all_console_users_id_query.query_result.0 | selectattr('USER_NAME', '==', item))[0]['ID_PK']) not in _domibus_bin_tc_console_users_id_in_roles
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: Plugin users are listed
+  mysql_query:
+    login_db: "{{ domibus_bin_tc_mysql_db }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+    query: SELECT USERNAME FROM TB_AUTHENTICATION_ENTRY
+  register: _domibus_bin_tc_plugin_users_query
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- set_fact:
+    _domibus_bin_tc_plugin_users: "{{ _domibus_bin_tc_plugin_users_query.query_result.0 | map(attribute='USERNAME') }}"
+- set_fact:
+    _domibus_bin_tc_missing_plugin_users: "{{ domibus_bin_tc_admin_plugin_users | map(attribute='login') | difference(_domibus_bin_tc_plugin_users) }}"
+
+- name: Required plugin users are present
+  mysql_query:
+    login_db: "{{ domibus_bin_tc_mysql_db }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+    query: |
+      INSERT INTO TB_AUTHENTICATION_ENTRY (USERNAME, PASSWD, AUTH_ROLES, CREATED_BY, MODIFIED_BY, MODIFICATION_TIME)
+      VALUES (%(login)s, %(password)s, 'ROLE_ADMIN', 'Ansible', 'Ansible', NOW())
+    named_args:
+      login: "{{ item.login }}"
+      password: "{{ item.password | password_hash(hashtype='blowfish', ident='2a', rounds=10) }}" 
+  loop: "{{ domibus_bin_tc_admin_plugin_users }}"
+  no_log: true
+  when: item.login in _domibus_bin_tc_missing_plugin_users
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"

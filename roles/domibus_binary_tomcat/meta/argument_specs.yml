@@ -1,0 +1,61 @@
+---
+argument_specs:
+  main:
+    author:
+      - Aurélien Merel
+    version_added: 1.0.0
+    short_description: Install Domibus for Tomcat from the European Commission's official binary distribution onto an Ubuntu server
+    description:
+      - This role installs and configures Domibus. More than one instance can be defined, for instance if a machine needs to host both a staging and a production instances.
+      - Serving Domibus is done with Tomcat, which is installed via the distribution's package manager.
+      - The installation and configuration of a MySQL server is not done in this role.
+      - The role handles upgrades of Domibus. When a new version of Domibus is specified, the role will not erase the previous version's code and configuration but will deploy the new one in a new folder, and will back up the database before running the migration scripts provided by the European Commission, making a rollback feasible in case of problem.
+      - Only the installation of the Tomcat distribution of Domibus is implemented. Tested only on Ubuntu server. Only the MySQL database backend is supported.
+    options:
+      domibus_bin_tc_instances:
+        type: list
+        elements: dict
+        description:
+          - 'A list where each item is a dictionary that describes the configuration of one Domibus instance.'
+          - 'If this variable is not defined, a single instance will be installed, with its parameters configured with default values. The default values can be found in C(vars/main.yml) under the names C(domibus_bin_tc_<dict_key_name>_default).'
+          - 'The available dictionary keys are:'
+          - 'C(deploy_env): an environment name of your choice, usually "sandbox", "staging" or "production".'
+          - 'C(system_user): the UNIX user account the Tomcat server serving Domibus will run as.'
+          - 'C(system_group): the UNIX group that C(system_user) belongs to.'
+          - 'C(listen_address): the IPv6 or IPv4 address that Tomcat must listen on.'
+          - 'C(listen_port): the TCP port that Tomcat must listen on.'
+          - 'C(base_dir): the directory acting as home folder for C(system_user).'
+          - 'C(version): Domibus version to install.'
+          - 'C(distribution_checksum): checksum of the Domibus ZIP archive corresponding to the specified version. Unless using the default, you will need to manually retrieve the checksum from the official website.'
+          - "C(tomcat_version): version of Tomcat to install with C(apt) on the system; it must be available in the distribution's packages."
+          - 'C(tomcat_shutdown_port): TCP port on which Tomcat will listen for its shutdown command.'
+          - 'C(tomcat_shutdown_command): secret string that will shutdown Tomcat if sent to the shutdown port.'
+          - 'C(deploy_dir): where the ZIP archive of the given Domibus version will be unpacked.'
+          - 'C(systemd_service_name): name of the systemd service for this Domibus instance.'
+          - 'C(systemd_service_enabled): whether or not the systemd service should be enabled (i.e. default to running and start at boot).'
+          - 'C(sql_scripts_version): the version to use of the SQL scripts archive provided by the European Commission. Make sure to update this version when you update the version of Domibus. Check on the official website.'
+          - 'C(permission_adjustment): list of dictionaries that specify folders and files that need their permissions and ownership rearranged after unzipping the archive.'
+          - 'C(mysql_db): name of the MySQL database that Domibus will use.'
+          - 'C(mysql_host): MySQL host Domibus will connect to.'
+          - 'C(mysql_port): MySQL port.'
+          - 'C(mysql_login): login to use to connect to the MySQL database.'
+          - 'C(mysql_password): password for the login to MySQL.'
+          - 'C(mysql_ansible_host): host where MySQL server is running, as defined in your Ansible inventory.'
+          - 'C(mysql_backup_dir): when migrating the database to a schema for a newer Domibus, the previous database will be backed up in this directory beforehand.'
+          - 'C(activemq_listen_port): local TCP port for ActiveMQ to listen on.'
+          - "C(java_properties): list of dictionaries defining Domibus' Java properties in C(domibus.properties) (keys: C(property), C(value))."
+          - 'C(additional_files): list of dictionaries containing a list of additional files to copy during installation (keys: C(src), C(dest), C(owner), C(group), C(mode)).'
+          - 'C(jks_instance_identity): the alias (name) of our Domibus instance, as associated to the private key in the JKS key store.'
+          - 'C(jks_instance_private_key_password): password to decrypt the encrypted Domibus instance private key.'
+          - 'C(jks_instance_private_key): encrypted private key of the Domibus instance, in PEM format.'
+          - 'C(jks_instance_certificate): public certificate of the Domibus instance, in PEM format. It must match the private key.'
+          - 'C(jks_keystore_password): password with which to protect the private JKS key store that contains the private key.'
+          - 'C(jks_truststore_password): password with which to protect the JKS trust store file.'
+          - 'C(jks_trusted_certificates): a list of dictionaries containing the trusted certificate (keys: C(alias) is the peer name and C(certificate) its certificate in PEM format).'
+          - 'C(pmode_content): content of the C(pmode.xml) file (can be templated in Jinja2).'
+          - 'C(admin_console_users): list of dictionaries describing the users allowed web console access with administration privileges (keys: C(login), C(password), C(email)).'
+          - 'C(admin_plugin_users): list of dictionaries describing users allowed to access the REST and SOAP APIs of Domibus (keys: C(login), C(password)).'
+          - 'C(ansible_api_credentials): credentials used by this Ansible role to connect to the Domibus REST API. They can match an entry in C(admin_plugin_users).'
+      domibus_bin_tc_only_deploy:
+        type: str
+        description: If you have several Domibus instances defined each with a different C(deploy_env) value, you can choose to only deploy the instance for which C(deploy_env) matches this variable's value. This variable is most useful when specified on the command line and can be handy to first make sure a staging deployment works fine, and then run it again to deploy the production environment.

@@ -1,0 +1,33 @@
+---
+- name: Domibus Tomcat ZIP archive is downloaded
+  get_url:
+    url: "https://ec.europa.eu/digital-building-blocks/artifact/repository/eDelivery/eu/domibus/domibus-msh-distribution/{{ domibus_bin_tc_version }}/domibus-msh-distribution-{{ domibus_bin_tc_version }}-tomcat-full.zip"
+    checksum: "{{ domibus_bin_tc_distribution_checksum }}"
+    dest: /root/
+    mode: "0644"
+
+- name: Domibus archive is unzipped
+  unarchive:
+    remote_src: yes
+    src: /root/domibus-msh-distribution-{{ domibus_bin_tc_version }}-tomcat-full.zip
+    dest: "{{ domibus_bin_tc_deploy_dir }}"
+    owner: root
+    group: "{{ domibus_bin_tc_system_group }}"
+    mode: u+rwX,g+rX-w,o-rwx
+    keep_newer: yes
+    exclude:
+      - domibus/bin/*
+      - domibus/bin
+      - domibus/BUILDING.txt
+      - domibus/CONTRIBUTING.md
+      - domibus/LICENSE
+      - domibus/NOTICE
+      - domibus/README.md
+      - domibus/RELEASE-NOTES
+      - domibus/RUNNING.txt
+
+- name: Symbolic link exists in Domibus lib directory to system's MariaDB Java library
+  file:
+    dest: "{{ domibus_bin_tc_deploy_dir }}/domibus/lib/mariadb-java-client.jar"
+    src: /usr/share/java/mariadb-java-client.jar
+    state: link

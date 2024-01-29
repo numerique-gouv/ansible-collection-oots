@@ -1,0 +1,40 @@
+---
+- name: APT packages necessary for Domibus are installed
+  apt:
+    pkg: ['tomcat{{ domibus_bin_tc_tomcat_version}}', libmariadb-java, unzip, python3-lxml, python3-pymysql]
+
+- name: Default Tomcat Systemd service is disabled
+  systemd_service:
+    name: "tomcat{{ domibus_bin_tc_tomcat_version }}.service"
+    state: stopped
+    enabled: false
+
+- name: All lines are commented in /etc/default Tomcat file
+  replace:
+    path: /etc/default/tomcat{{ domibus_bin_tc_tomcat_version }}
+    regexp: '^\s*([_A-Za-z].*)'
+    replace: '#\1'
+
+- name: System group for Domibus exists
+  group:
+    name: "{{ domibus_bin_tc_system_group }}"
+    system: true
+
+- name: System user for Domibus exists
+  user:
+    name: "{{ domibus_bin_tc_system_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ domibus_bin_tc_base_dir }}"
+    create_home: false
+
+- name: Base directories exist
+  file:
+    name: "{{ item }}"
+    state: directory
+    owner: root
+    group: "{{ domibus_bin_tc_system_group }}"
+    mode: "0750"
+  loop:
+    - "{{ domibus_bin_tc_base_dir }}"
+    - "{{ domibus_bin_tc_deploy_dir }}"

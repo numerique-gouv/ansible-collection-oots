@@ -1,0 +1,159 @@
+---
+- name: MySQL database exists
+  mysql_db:
+    db: "{{ domibus_bin_tc_mysql_db }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+  register: _domibus_bin_tc_mysql_db_create
+  notify: domibus is restarted
+
+- name: Database collate and charset options are properly set
+  mysql_query:
+    query: "ALTER DATABASE {{ domibus_bin_tc_mysql_db }} charset=utf8mb4 collate=utf8mb4_bin"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  when: _domibus_bin_tc_mysql_db_create.changed
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: Collect version of existing Domibus database
+  mysql_query:
+    login_db: "{{ domibus_bin_tc_mysql_db }}"
+    query: 'SELECT VERSION FROM TB_VERSION ORDER BY VERSION DESC LIMIT 1'
+    login_unix_socket: /run/mysqld/mysqld.sock
+  when: not _domibus_bin_tc_mysql_db_create.changed
+  register: _domibus_bin_tc_query_db_version
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+  ignore_errors: true
+
+- set_fact:
+    _domibus_bin_tc_current_db_version: "{{ _domibus_bin_tc_query_db_version.query_result.0.0.VERSION | default('0') }}"
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: Verify that we are not trying to downgrade
+  assert:
+    that:
+      - "_domibus_bin_tc_current_db_version <= domibus_bin_tc_version"
+    msg: "Current database in production is {{ _domibus_bin_tc_current_db_version }}. Cannot downgrade to {{ domibus_bin_tc_version }}."
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: MySQL user exists for Domibus
+  mysql_user:
+    name: "{{ domibus_bin_tc_mysql_login }}"
+    plugin: caching_sha2_password
+    plugin_auth_string: "{{ domibus_bin_tc_mysql_password }}"
+    host: "{{ (domibus_bin_tc_mysql_host == 'localhost') | ternary('localhost', '%') }}"
+    priv: "{{ domibus_bin_tc_mysql_db }}.*:ALL/*.*:XA_RECOVER_ADMIN"
+    sql_log_bin: false
+    login_unix_socket: /run/mysqld/mysqld.sock
+  no_log: true
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: Domibus SQL scripts ZIP archive is downloaded
+  get_url:
+    url: "https://ec.europa.eu/digital-building-blocks/artifact/repository/eDelivery/eu/domibus/domibus-msh-sql-distribution/{{ domibus_bin_tc_sql_scripts_version }}/domibus-msh-sql-distribution-{{ domibus_bin_tc_sql_scripts_version }}.zip"
+    dest: /root/
+    mode: "0644"
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+  when: _domibus_bin_tc_current_db_version < domibus_bin_tc_version
+
+- name: /root/sql-scripts is cleaned up
+  file:
+    path: /root/sql-scripts
+    state: absent
+  when: _domibus_bin_tc_current_db_version < domibus_bin_tc_version
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: Domibus SQL scripts ZIP is unpacked
+  unarchive:
+    src: "/root/domibus-msh-sql-distribution-{{ domibus_bin_tc_sql_scripts_version }}.zip"
+    dest: /root/
+    remote_src: yes
+    include:
+      - sql-scripts/upgrade/mysql/*
+      - sql-scripts/{{ domibus_bin_tc_version }}/mysql/*
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+  when: _domibus_bin_tc_current_db_version < domibus_bin_tc_version
+
+- name: List all .ddl files
+  find:
+    paths: /root/sql-scripts
+    patterns: '*.ddl'
+    recurse: true
+  register: _domibus_bin_tc_find_ddl
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}" 
+  when: _domibus_bin_tc_current_db_version < domibus_bin_tc_version
+
+- name: Each .ddl file is linked from a .sql file
+  file:
+    path: "{{ item.path | regex_replace('\\.ddl$', '.sql') }}"
+    src: "{{ item.path | basename }}"
+    state: link
+  loop: "{{ _domibus_bin_tc_find_ddl.files }}"
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}" 
+  when: _domibus_bin_tc_current_db_version < domibus_bin_tc_version
+
+- name: MySQL database is initialised with Domibus tables and base content
+  mysql_db:
+    db: "{{ domibus_bin_tc_mysql_db }}"
+    state: import
+    target: /root/sql-scripts/{{ domibus_bin_tc_version }}/mysql/{{ item }}
+    login_unix_socket: /run/mysqld/mysqld.sock
+  loop:
+    - mysql-{{ domibus_bin_tc_version }}.sql
+    - mysql-{{ domibus_bin_tc_version }}-data.sql
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+  when: _domibus_bin_tc_mysql_db_create.changed
+  notify: domibus is restarted
+
+- name: Directory for MySQL database backups exists
+  file:
+    path: "{{ domibus_bin_tc_mysql_backup_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: (not _domibus_bin_tc_mysql_db_create.changed) and _domibus_bin_tc_current_db_version < domibus_bin_tc_version
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: Domibus is stopped
+  systemd_service:
+    name: "{{ domibus_bin_tc_systemd_service_name }}.service"
+    state: stopped
+  when: (not _domibus_bin_tc_mysql_db_create.changed) and _domibus_bin_tc_current_db_version < domibus_bin_tc_version
+
+- name: Current version of Domibus database is backed up
+  mysql_db:
+    db: "{{ domibus_bin_tc_mysql_db }}"
+    state: dump
+    target: "{{ domibus_bin_tc_mysql_backup_dir }}/{{ _domibus_bin_tc_current_db_version }}.sql.xz"
+    encoding: utf8
+    login_unix_socket: /run/mysqld/mysqld.sock
+  when: (not _domibus_bin_tc_mysql_db_create.changed) and _domibus_bin_tc_current_db_version < domibus_bin_tc_version
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+
+- name: Find all database upgrade SQL scripts
+  find:
+    paths: /root/sql-scripts/upgrade/mysql
+    patterns: "mysql-{{ _domibus_bin_tc_current_db_version }}-to-{{ domibus_bin_tc_version }}-upgrade*.sql"
+    file_type: any
+  register: _domibus_bin_tc_find_db_upgrade_scripts
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+  when: (not _domibus_bin_tc_mysql_db_create.changed) and _domibus_bin_tc_current_db_version < domibus_bin_tc_version
+
+- name: Find all database data upgrade SQL scripts
+  find:
+    paths: /root/sql-scripts/upgrade/mysql
+    patterns: "mysql-{{ _domibus_bin_tc_current_db_version }}-to-{{ domibus_bin_tc_version }}-data-upgrade*.sql"
+    file_type: any
+  register: _domibus_bin_tc_find_data_upgrade_scripts
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+  when: (not _domibus_bin_tc_mysql_db_create.changed) and _domibus_bin_tc_current_db_version < domibus_bin_tc_version
+
+- name: MySQL database is migrated to last Domibus version
+  mysql_db:
+    db: "{{ domibus_bin_tc_mysql_db }}"
+    state: import
+    target: "{{ item }}" 
+    login_unix_socket: /run/mysqld/mysqld.sock
+  loop: "{{ ((_domibus_bin_tc_find_db_upgrade_scripts.files|sort(attribute='path')) + (_domibus_bin_tc_find_data_upgrade_scripts.files|sort(attribute='path')))|map(attribute='path') }}"
+  delegate_to: "{{ domibus_bin_tc_mysql_ansible_host }}"
+  when: (not _domibus_bin_tc_mysql_db_create.changed) and _domibus_bin_tc_current_db_version < domibus_bin_tc_version

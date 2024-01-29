@@ -1,0 +1,4 @@
+---
+- name: domibus is restarted
+  set_fact:
+    _domibus_bin_tc_must_restart: True

@@ -1,0 +1,28 @@
+---
+- name: Systemd file exists for domibus_binary service
+  template:
+    src: domibus_binary.service.j2
+    dest: /etc/systemd/system/{{ domibus_bin_tc_systemd_service_name }}.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: domibus is restarted
+
+- meta: flush_handlers
+
+- name: Domibus is restarted
+  systemd_service:
+    name: "{{ domibus_bin_tc_systemd_service_name }}.service"
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  when: '(_domibus_bin_tc_must_restart|default(False)) and domibus_bin_tc_systemd_service_enabled'
+
+- name: Domibus Systemd service has the required state
+  systemd_service:
+    name: "{{ domibus_bin_tc_systemd_service_name }}.service"
+    state: "{{ domibus_bin_tc_systemd_service_enabled | ternary('started', 'stopped') }}"
+    enabled: "{{ domibus_bin_tc_systemd_service_enabled }}"
+
+- set_fact:
+    _domibus_bin_tc_must_restart: False
