@@ -6,7 +6,14 @@ used by any European Union Member State in order to participate to the
 System](https://ec.europa.eu/digital-building-blocks/sites/display/OOTS/About+OOTS)
 (OOTS).
 
-## How to use
+## Important security considerations
+
+Some roles are provided with default settings that may allow you run functional
+software, but some parameters such as private keys, passwords and privileged
+accounts must be changed in order to run them safely in a production
+environment.
+
+## How to install
 
 This collection can be installed and its roles can be integrated to Ansible
 playbooks.
