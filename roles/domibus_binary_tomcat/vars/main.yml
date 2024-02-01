@@ -1,6 +1,6 @@
 ---    
 domibus_bin_tc_deploy_env_default: sandbox
-domibus_bin_tc_system_user_default: domibus_binary_{{ domibus_bin_tc_deploy_env }}
+domibus_bin_tc_system_user_default: domibus_binary_tomcat_{{ domibus_bin_tc_deploy_env }}
 domibus_bin_tc_system_group_default: "{{ domibus_bin_tc_system_user }}"
 domibus_bin_tc_listen_address_default: ::1
 domibus_bin_tc_listen_port_default: 8181
@@ -11,7 +11,7 @@ domibus_bin_tc_tomcat_version_default: 9
 domibus_bin_tc_tomcat_shutdown_port_default: 58291
 domibus_bin_tc_tomcat_shutdown_command_default: DOMIBUSSHUTDOWNCMD
 domibus_bin_tc_deploy_dir_default: "{{ domibus_bin_tc_base_dir }}/versions/{{ domibus_bin_tc_version }}"
-domibus_bin_tc_systemd_service_name_default: domibus_binary_{{ domibus_bin_tc_deploy_env }}
+domibus_bin_tc_systemd_service_name_default: domibus_binary_tomcat_{{ domibus_bin_tc_deploy_env }}
 domibus_bin_tc_systemd_service_enabled_default: true
 domibus_bin_tc_sql_scripts_version_default: '1.2'
 domibus_bin_tc_permissions_adjustment_default:
