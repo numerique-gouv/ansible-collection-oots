@@ -93,6 +93,7 @@
         force_basic_auth: true
         return_content: true
       register: _domibus_bin_tc_live_pmode
+      when: "'json' in _domibus_bin_tc_live_pmode_id"
 
     - name: Current git commit is known
       command:
@@ -103,7 +104,7 @@
       run_once: true
       ignore_errors: true
       register: _domibus_bin_tc_local_git_commit_cmd
-      when: _domibus_bin_tc_live_pmode.content != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
+      when: (_domibus_bin_tc_live_pmode.content | default('')) != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
       changed_when: false
 
     - name: PMode is uploaded to server
@@ -111,20 +112,20 @@
         dest: /tmp/pmode.xml
         content: "{{ domibus_bin_tc_pmode_content }}"
         mode: 0600
-      when: _domibus_bin_tc_live_pmode.content != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
+      when: (_domibus_bin_tc_live_pmode.content | default('')) != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
 
     - name: Live PMode is updated with our content
       command:
         cmd: "curl -u {{ domibus_bin_tc_ansible_api_credentials.login | quote }} -XPOST -F description={{ ('Ansible upload at commit ' ~ _domibus_bin_tc_local_git_commit_cmd.stdout) | quote }} -F file=@/tmp/pmode.xml {{ _domibus_bin_tc_api_base_url|quote }}/ext/pmode"
         stdin: "{{ domibus_bin_tc_ansible_api_credentials.password }}"
       register: _domibus_bin_tc_curl_post_pmode
-      when: _domibus_bin_tc_live_pmode.content != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
+      when: (_domibus_bin_tc_live_pmode.content | default('')) != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
       failed_when: "'ERROR' in _domibus_bin_tc_curl_post_pmode.stdout"
 
     - name: PMode temporary file is deleted
       file:
         path: /tmp/pmode.xml
         state: absent
-      when: _domibus_bin_tc_live_pmode.content != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
+      when: (_domibus_bin_tc_live_pmode.content | default('')) != domibus_bin_tc_pmode_content and domibus_bin_tc_pmode_content != ''
 
   when: domibus_bin_tc_systemd_service_enabled
