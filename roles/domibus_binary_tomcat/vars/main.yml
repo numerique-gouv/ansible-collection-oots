@@ -120,3 +120,7 @@ domibus_bin_tc_admin_plugin_users_default:
   - login: ansible
     password: 'shek3Aeduog4shaixiT0aeraeQuaiyi2'
 domibus_bin_tc_ansible_api_credentials_default: "{{ (domibus_bin_tc_admin_plugin_users | selectattr('login', '==', 'ansible'))[0] }}"
+
+# Work around an Ansible argument spec validation bug. We should find a better
+# way to prevent Ansible argument spec validation from being confused.
+domibus_bin_tc_system_user: "(placeholder)"
