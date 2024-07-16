@@ -22,7 +22,7 @@ Add the following to your Ansible Galaxy `requirements.yml` file:
 
 ```yaml
 collections:
-  - name: https://github.com/betagouv/ansible-collection-oots.git
+  - name: https://github.com/numerique-gouv/ansible-collection-oots.git
     type: git
 ```
 
