@@ -5,8 +5,8 @@ domibus_bin_tc_system_group_default: "{{ domibus_bin_tc_system_user }}"
 domibus_bin_tc_listen_address_default: ::1
 domibus_bin_tc_listen_port_default: 8181
 domibus_bin_tc_base_dir_default: /var/lib/{{ domibus_bin_tc_system_user }}
-domibus_bin_tc_version_default: '5.1.2'
-domibus_bin_tc_distribution_checksum_default: sha256:28d123485f5796d858c96d8aad6acb68e8734ac262ae430fd9454d5f1f5d5f6c
+domibus_bin_tc_version_default: '5.1.5'
+domibus_bin_tc_distribution_checksum_default: 'sha256:20010273935bc089c9218688c4160767532b4602e4776594214994367be4644d'
 domibus_bin_tc_tomcat_version_default: 9
 domibus_bin_tc_tomcat_shutdown_port_default: 58291
 domibus_bin_tc_tomcat_shutdown_command_default: DOMIBUSSHUTDOWNCMD
@@ -23,6 +23,7 @@ domibus_bin_tc_permissions_adjustment_default:
   - { path: domibus/conf/domibus/keystores, type: directory, owner: root, group: "{{domibus_bin_tc_system_group}}", mode: "u+rwX,g+rX,o-rwx", recurse: true }
   - { path: domibus/conf/domibus/keystores/truststore-pem, type: directory, owner: root, group: "{{domibus_bin_tc_system_group}}", mode: "u+rwX,g+rX,o-rwx", recurse: true }
   - { path: domibus/conf/domibus/keystores/backups, type: directory, owner: "{{domibus_bin_tc_system_user}}", group: "{{domibus_bin_tc_system_group}}", mode: "u+rwX,go-rwx", recurse: true }
+  - { path: domibus/conf/domibus/backups, type: directory, owner: "{{domibus_bin_tc_system_user}}", group: "{{domibus_bin_tc_system_group}}", mode: "u+rwX,go-rwx", recurse: true }
   - { path: domibus/lib, type: directory, owner: root, group: "{{domibus_bin_tc_system_group}}", mode: "u+rwX,g+rX-w,o-rwx", recurse: true }
   - { path: domibus/logs, type: directory, owner: "{{domibus_bin_tc_system_user}}", group: "{{domibus_bin_tc_system_group}}", mode: "u+rwX,go-rwx", recurse: true }
   - { path: domibus/webapps, type: directory, owner: "{{domibus_bin_tc_system_user}}", group: "{{domibus_bin_tc_system_group}}", mode: "u+rwX,go-rwx", recurse: true }
